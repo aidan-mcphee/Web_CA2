@@ -1,0 +1,11 @@
+# User requested excludes
+wikipedia_xml
+data/wikipedia_xml
+**/wikipedia_xml
+
+# Common excludes
+.git
+.venv
+__pycache__
+*.pyc
+.env

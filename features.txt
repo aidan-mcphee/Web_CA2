@@ -1,0 +1,4 @@
+basic view the map with all articles on them, when clicked on get a basic summary (extract).
+limit by time period to only show artciles between certain dates (use citations)
+search for an article, uses wikipedia suggest
+all articles should be cached in the database for faster lookup and less requests.
