@@ -12,6 +12,8 @@ from rest_framework.decorators import api_view
 from django.core.cache import cache
 import requests
 
+from urllib.parse import quote
+
 # Page views
 def index(request):
     return render(request, 'wikimap/index.html')
@@ -28,7 +30,9 @@ def article_summary(request, title):
         return Response(cached_data)
 
     try:
-        url = f"https://en.wikipedia.org/api/rest_v1/page/summary/{title}"
+        # Encode the title for the URL (handles spaces, slashes, etc.)
+        encoded_title = quote(title, safe='')
+        url = f"https://en.wikipedia.org/api/rest_v1/page/summary/{encoded_title}"
         response = requests.get(url, headers={'User-Agent': 'WikiMap/1.0 (http://localhost/map/; contact@amcp.ie)'})
         
         if response.status_code == 200:

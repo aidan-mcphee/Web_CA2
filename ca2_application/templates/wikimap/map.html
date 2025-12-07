@@ -452,7 +452,7 @@
                                 `);
                                 
                                 try {
-                                    const response = await fetch(`/api/summary/${title}/`);
+                                    const response = await fetch(`/api/summary/${encodeURIComponent(title)}/`);
                                     if (!response.ok) throw new Error('Failed to fetch summary');
                                     const data = await response.json();
                                     
