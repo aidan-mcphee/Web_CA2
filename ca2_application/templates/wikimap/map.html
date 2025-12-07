@@ -1,0 +1,142 @@
+{% extends 'base.html' %}
+
+{% block title %}WikiMap - Explore{% endblock %}
+
+{% block extra_head %}
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+     integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+     crossorigin=""/>
+    
+    <style>
+        /* Ensure map takes full available height */
+        #map-container {
+            height: calc(100vh - 4rem - env(safe-area-inset-top));
+            width: 100%;
+            z-index: 0;
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+    <div id="map-root" class="w-full h-full relative"></div>
+{% endblock %}
+
+{% block extra_scripts %}
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+     integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+     crossorigin=""></script>
+
+    <script type="text/babel">
+        const WikiMap = () => {
+            const mapRef = React.useRef(null);
+            const mapInstanceRef = React.useRef(null);
+            const markersLayerRef = React.useRef(null);
+            
+            // State to store articles could be useful, but for 100k points we might just want to 
+            // directly manage markers on the leaflet layer to avoid React reconciliation overhead 
+            // if we were to render them as components.
+            // However, fetching data and updating the layer is a side effect.
+
+            const fetchArticles = async (bounds) => {
+                try {
+                    // Format bounds for backend: min_lon,min_lat,max_lon,max_lat
+                    const bbox = [
+                        bounds.getWest(),
+                        bounds.getSouth(),
+                        bounds.getEast(),
+                        bounds.getNorth()
+                    ].join(',');
+
+                    const response = await fetch(`/api/articles/?in_bbox=${bbox}&format=json`);
+                    if (!response.ok) throw new Error('Network response was not ok');
+                    const data = await response.json();
+                    
+                    updateMarkers(data);
+                } catch (error) {
+                    console.error("Failed to fetch articles:", error);
+                }
+            };
+
+            const updateMarkers = (geojson) => {
+                if (!markersLayerRef.current) return;
+                
+                markersLayerRef.current.clearLayers();
+                
+                L.geoJSON(geojson, {
+                    pointToLayer: (feature, latlng) => {
+                        return L.circleMarker(latlng, {
+                            radius: 6,
+                            fillColor: "#3b82f6",
+                            color: "#ffffff",
+                            weight: 2,
+                            opacity: 1,
+                            fillOpacity: 0.8
+                        });
+                    },
+                    onEachFeature: (feature, layer) => {
+                        if (feature.properties && feature.properties.title) {
+                            layer.bindPopup(`
+                                <div class="p-2">
+                                    <h3 class="font-bold text-lg">${feature.properties.title}</h3>
+                                    <p class="text-xs text-gray-500">Date: ${feature.properties.oldest_date || 'Unknown'}</p>
+                                    <a href="#" class="text-blue-600 hover:text-blue-800 text-sm mt-1 block">Read Article</a>
+                                </div>
+                            `);
+                        }
+                    }
+                }).addTo(markersLayerRef.current);
+            };
+
+            React.useEffect(() => {
+                if (!mapRef.current) return;
+                
+                // Initialize Map
+                // Default view: Europe roughly, or world
+                const map = L.map(mapRef.current).setView([48.8566, 2.3522], 13); // Start at Paris for demo
+                mapInstanceRef.current = map;
+
+                // Add Tile Layer (OpenStreetMap)
+                L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    maxZoom: 19,
+                    attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                }).addTo(map);
+
+                // Initialize Markers Layer Group
+                const markersLayer = L.layerGroup().addTo(map);
+                markersLayerRef.current = markersLayer;
+
+                // Event Listeners for Moving
+                const onMoveEnd = () => {
+                    fetchArticles(map.getBounds());
+                };
+                
+                map.on('moveend', onMoveEnd);
+                
+                // Initial fetch
+                fetchArticles(map.getBounds());
+
+                // Cleanup
+                return () => {
+                    map.off('moveend', onMoveEnd);
+                    map.remove();
+                };
+            }, []);
+
+            return (
+                <div className="w-full h-full relative">
+                    <div ref={mapRef} id="map-container" className="rounded-lg shadow-inner" />
+                    
+                    {/* Floating Controls or Info could go here */}
+                    <div className="absolute bottom-6 right-6 z-[1000] bg-white/90 p-2 rounded-lg shadow-lg backdrop-blur-sm text-xs text-gray-600">
+                        Viewport-based loading
+                    </div>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('map-root'));
+        root.render(<WikiMap />);
+    </script>
+{% endblock %}
