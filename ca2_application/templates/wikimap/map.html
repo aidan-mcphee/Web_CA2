@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load static %}
 
 {% block title %}WikiMap - Explore{% endblock %}
 
@@ -20,7 +21,6 @@
             background-color: #f8fafc; /* Light elegant background for map container */
         }
 
-        /* Marker Cluster Animations & Styles */
         /* Marker Cluster Animations & Styles */
         .custom-cluster-icon {
             /* No transition on the wrapper to prevent positioning glitches (floating markers) */
@@ -153,17 +153,17 @@
                         }
                         
                         // Standard Article Marker - improved look
-                        return L.circleMarker(latlng, {
-                            radius: 6,
-                            fillColor: "#0ea5e9", // Sky blue 500
-                            color: "#ffffff",
-                            weight: 2,
-                            opacity: 1,
-                            opacity: 1,
-                            opacity: 1,
-                            fillOpacity: 0.9,
-                            // Use safe transition class for color/size updates
-                            className: 'marker-transition' 
+                        const wikiIcon = L.icon({
+                            iconUrl: '{% static "svg/Wikipedia-logo-v2.svg" %}',
+                            iconSize: [32, 32], // Default size
+                            iconAnchor: [16, 16], // Center anchor
+                            popupAnchor: [0, -16], // Popup above
+                            className: 'marker-transition'
+                        });
+
+                        return L.marker(latlng, {
+                            icon: wikiIcon,
+                            title: feature.properties.title
                         });
                     },
                     onEachFeature: (feature, layer) => {
@@ -187,16 +187,20 @@
                             
                             // Add hover effect
                             layer.on('mouseover', function() {
-                                this.setStyle({
-                                    radius: 8,
-                                    fillColor: "#0284c7" // Darker blue on hover
-                                });
+                                const currentIcon = this.options.icon;
+                                this.setIcon(L.icon({
+                                    ...currentIcon.options,
+                                    iconSize: [40, 40], // Scale up
+                                    iconAnchor: [20, 20] // Adjust anchor
+                                }));
                             });
                             layer.on('mouseout', function() {
-                                this.setStyle({
-                                    radius: 6,
-                                    fillColor: "#0ea5e9"
-                                });
+                                const currentIcon = this.options.icon;
+                                this.setIcon(L.icon({
+                                    ...currentIcon.options,
+                                    iconSize: [32, 32], // Back to normal
+                                    iconAnchor: [16, 16] // Back to normal anchor
+                                }));
                             });
                             
                         } else if (feature.properties && feature.properties.is_cluster) {
