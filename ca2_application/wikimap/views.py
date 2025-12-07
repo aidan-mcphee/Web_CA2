@@ -14,6 +14,9 @@ import requests
 
 from urllib.parse import quote
 
+
+ZOOM_THRESHOLD = 16
+
 # Page views
 def index(request):
     return render(request, 'wikimap/index.html')
@@ -79,7 +82,7 @@ class ArticleViewSet(viewsets.ReadOnlyModelViewSet):
 
     def list(self, request, *args, **kwargs):
         zoom = request.query_params.get('zoom')
-        if zoom and float(zoom) < 14:
+        if zoom and float(zoom) < ZOOM_THRESHOLD:
             try:
                 zoom_level = float(zoom)
                 # Efficient Grid Clustering
