@@ -7,6 +7,9 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
      crossorigin=""/>
+    <!-- Leaflet MarkerCluster CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" />
     
     <style>
         /* Ensure map takes full available height */
@@ -14,6 +17,53 @@
             height: calc(100vh - 4rem - env(safe-area-inset-top));
             width: 100%;
             z-index: 0;
+            background-color: #f8fafc; /* Light elegant background for map container */
+        }
+
+        /* Marker Cluster Animations & Styles */
+        /* Marker Cluster Animations & Styles */
+        .custom-cluster-icon {
+            /* No transition on the wrapper to prevent positioning glitches (floating markers) */
+        }
+        .custom-cluster-icon:hover {
+            z-index: 1000 !important;
+        }
+
+        /* Safe transitions for individual markers */
+        .marker-transition {
+            transition-property: fill, stroke, r;
+            transition-duration: 0.3s;
+            transition-timing-function: ease-out;
+        }
+
+        .cluster-marker {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            color: white;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            font-weight: 700;
+            box-shadow: 
+                0 4px 6px -1px rgba(0, 0, 0, 0.1), 
+                0 2px 4px -1px rgba(0, 0, 0, 0.06),
+                inset 0 1px 1px rgba(255, 255, 255, 0.3);
+            border: 2px solid rgba(255, 255, 255, 0.9);
+            text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+            backdrop-filter: blur(4px);
+        }
+
+        .cluster-small {
+            background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%); /* Blue-400 to Blue-500 */
+        }
+        .cluster-medium {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); /* Blue-500 to Blue-600 */
+        }
+        .cluster-large {
+            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%); /* Blue-600 to Blue-700 */
+        }
+        .cluster-huge {
+            background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%); /* Blue-700 to Blue-800 */
         }
     </style>
 {% endblock %}
@@ -27,6 +77,8 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
      integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
      crossorigin=""></script>
+    <!-- Leaflet MarkerCluster JS -->
+    <script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
 
     <script type="text/babel">
         const WikiMap = () => {
@@ -48,8 +100,10 @@
                         bounds.getEast(),
                         bounds.getNorth()
                     ].join(',');
+                    
+                    const zoom = mapInstanceRef.current ? mapInstanceRef.current.getZoom() : 13;
 
-                    const response = await fetch(`/api/articles/?in_bbox=${bbox}&format=json`);
+                    const response = await fetch(`/api/articles/?in_bbox=${bbox}&zoom=${zoom}&format=json`);
                     if (!response.ok) throw new Error('Network response was not ok');
                     const data = await response.json();
                     
@@ -64,26 +118,92 @@
                 
                 markersLayerRef.current.clearLayers();
                 
+                const createClusterIcon = (count) => {
+                    let size, className;
+
+                    if (count < 10) {
+                        size = 32;
+                        className = 'cluster-small';
+                    } else if (count < 100) {
+                        size = 40;
+                        className = 'cluster-medium';
+                    } else if (count < 1000) {
+                        size = 48;
+                        className = 'cluster-large';
+                    } else {
+                        size = 56;
+                        className = 'cluster-huge';
+                    }
+
+                    return L.divIcon({
+                        html: `<div class="cluster-marker ${className}" style="width: ${size}px; height: ${size}px; font-size: ${Math.max(10, size/2.5)}px;">${count}</div>`,
+                        className: 'custom-cluster-icon', // Wrapper class for Leaflet
+                        iconSize: L.point(size, size),
+                        iconAnchor: [size / 2, size / 2] // Center the icon
+                    });
+                };
+
                 L.geoJSON(geojson, {
                     pointToLayer: (feature, latlng) => {
+                        // Check if it's a server-side cluster
+                        if (feature.properties && feature.properties.is_cluster && feature.properties.count > 1) {
+                            return L.marker(latlng, {
+                                icon: createClusterIcon(feature.properties.count)
+                            });
+                        }
+                        
+                        // Standard Article Marker - improved look
                         return L.circleMarker(latlng, {
                             radius: 6,
-                            fillColor: "#3b82f6",
+                            fillColor: "#0ea5e9", // Sky blue 500
                             color: "#ffffff",
                             weight: 2,
                             opacity: 1,
-                            fillOpacity: 0.8
+                            opacity: 1,
+                            opacity: 1,
+                            fillOpacity: 0.9,
+                            // Use safe transition class for color/size updates
+                            className: 'marker-transition' 
                         });
                     },
                     onEachFeature: (feature, layer) => {
                         if (feature.properties && feature.properties.title) {
                             layer.bindPopup(`
-                                <div class="p-2">
-                                    <h3 class="font-bold text-lg">${feature.properties.title}</h3>
-                                    <p class="text-xs text-gray-500">Oldest Reference: ${feature.properties.oldest_date || 'Unknown'}</p>
-                                    <a href="https://en.wikipedia.org/wiki/${feature.properties.title}" class="text-blue-600 hover:text-blue-800 text-sm mt-1 block">Read Article</a>
+                                <div class="p-3" style="width: 240px;">
+                                    <h3 class="font-bold text-gray-900 text-base mb-1 truncate" title="${feature.properties.title}">${feature.properties.title}</h3>
+                                    <div class="flex items-center gap-2 text-xs text-gray-500 mb-2">
+                                        <span class="bg-gray-100 px-2 py-0.5 rounded-full">Oldest: ${feature.properties.oldest_date || 'N/A'}</span>
+                                    </div>
+                                    <a href="https://en.wikipedia.org/wiki/${feature.properties.title}" 
+                                       target="_blank"
+                                       class="inline-flex items-center justify-center w-full px-3 py-1.5 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-md text-sm font-medium transition-colors">
+                                       Read Article →
+                                    </a>
                                 </div>
-                            `);
+                            `, {
+                                closeButton: false,
+                                className: 'custom-popup'
+                            });
+                            
+                            // Add hover effect
+                            layer.on('mouseover', function() {
+                                this.setStyle({
+                                    radius: 8,
+                                    fillColor: "#0284c7" // Darker blue on hover
+                                });
+                            });
+                            layer.on('mouseout', function() {
+                                this.setStyle({
+                                    radius: 6,
+                                    fillColor: "#0ea5e9"
+                                });
+                            });
+                            
+                        } else if (feature.properties && feature.properties.is_cluster) {
+                            // Cluster click -> Zoom in
+                            layer.on('click', () => {
+                                mapInstanceRef.current.setView(layer.getLatLng(), mapInstanceRef.current.getZoom() + 2);
+                            });
                         }
                     }
                 }).addTo(markersLayerRef.current);
@@ -103,7 +223,7 @@
                     attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
                 }).addTo(map);
 
-                // Initialize Markers Layer Group
+                // Initialize Markers Layer Group (Standard Layer, not MarkerCluster anymore for server-side clusters)
                 const markersLayer = L.layerGroup().addTo(map);
                 markersLayerRef.current = markersLayer;
 
