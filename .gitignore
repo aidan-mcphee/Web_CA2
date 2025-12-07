@@ -141,3 +141,4 @@ GitHub.sublime-settings
 # Project specific
 **/wikipedia_xml
 **/wikipedia_articles.db
+**/postgres-backup
