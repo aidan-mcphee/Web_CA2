@@ -16,6 +16,8 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    volumes:
+      - ca2_postgres_data:/var/lib/postgresql/data
 
   web:
     build: ./ca2_application
