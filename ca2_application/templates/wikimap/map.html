@@ -85,20 +85,65 @@
         // Timeline Control Component
         const TimelineControl = ({ minDate, maxDate, currentRange, onChange }) => {
             const [localRange, setLocalRange] = React.useState(currentRange);
+            const [minInput, setMinInput] = React.useState(currentRange[0].toString());
+            const [maxInput, setMaxInput] = React.useState(currentRange[1].toString());
 
-            const handleMinChange = (e) => {
+            React.useEffect(() => {
+                setLocalRange(currentRange);
+                setMinInput(currentRange[0].toString());
+                setMaxInput(currentRange[1].toString());
+            }, [currentRange]);
+
+            const handleSliderMinChange = (e) => {
                 const newVal = parseInt(e.target.value);
                 if (newVal < localRange[1]) {
                     setLocalRange([newVal, localRange[1]]);
+                    setMinInput(newVal.toString());
                     onChange([newVal, localRange[1]]);
                 }
             };
 
-            const handleMaxChange = (e) => {
+            const handleSliderMaxChange = (e) => {
                 const newVal = parseInt(e.target.value);
                 if (newVal > localRange[0]) {
                     setLocalRange([localRange[0], newVal]);
+                    setMaxInput(newVal.toString());
                     onChange([localRange[0], newVal]);
+                }
+            };
+
+            const commitMinChange = () => {
+                let newVal = parseInt(minInput);
+                if (isNaN(newVal)) {
+                    setMinInput(localRange[0].toString()); // Revert
+                    return;
+                }
+                // Clamp
+                newVal = Math.max(minDate, Math.min(newVal, localRange[1]));
+                
+                setLocalRange([newVal, localRange[1]]);
+                setMinInput(newVal.toString());
+                onChange([newVal, localRange[1]]);
+            };
+
+            const commitMaxChange = () => {
+                let newVal = parseInt(maxInput);
+                if (isNaN(newVal)) {
+                    setMaxInput(localRange[1].toString()); // Revert
+                    return;
+                }
+                // Clamp
+                newVal = Math.min(maxDate, Math.max(newVal, localRange[0]));
+                
+                setLocalRange([localRange[0], newVal]);
+                setMaxInput(newVal.toString());
+                onChange([localRange[0], newVal]);
+            };
+
+            const handleKeyDown = (e, callback) => {
+                if (e.key === 'Enter') {
+                    callback();
+                    e.target.blur();
                 }
             };
 
@@ -111,7 +156,6 @@
                     
                     <div className="space-y-4">
                         <div className="relative h-2 bg-gray-200 rounded-full mt-2">
-                             {/* Range Visualizer needed here if full slider, but native inputs are easier for MVP */}
                              <div className="absolute h-full bg-blue-500 rounded-full opacity-50" 
                                   style={{
                                       left: `${((localRange[0] - minDate) / (maxDate - minDate)) * 100}%`,
@@ -119,28 +163,46 @@
                                   }} />
                         </div>
 
-                        <div className="flex justify-between text-xs font-medium text-gray-500 font-mono">
-                            <span>{localRange[0]}</span>
-                            <span>{localRange[1]}</span>
+                        <div className="flex justify-between items-center gap-2">
+                            <div className="flex flex-col gap-1 w-full">
+                                <label className="text-xs text-gray-500 font-semibold">Start Year</label>
+                                <input 
+                                    type="number" 
+                                    value={minInput} 
+                                    onChange={(e) => setMinInput(e.target.value)}
+                                    onBlur={commitMinChange}
+                                    onKeyDown={(e) => handleKeyDown(e, commitMinChange)}
+                                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                                />
+                            </div>
+                            <div className="flex flex-col gap-1 w-full">
+                                <label className="text-xs text-gray-500 font-semibold text-right">End Year</label>
+                                <input 
+                                    type="number" 
+                                    value={maxInput} 
+                                    onChange={(e) => setMaxInput(e.target.value)}
+                                    onBlur={commitMaxChange}
+                                    onKeyDown={(e) => handleKeyDown(e, commitMaxChange)}
+                                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:outline-none text-right"
+                                />
+                            </div>
                         </div>
 
-                        <div className="flex flex-col gap-2">
-                             <label className="text-xs text-gray-400">From Year</label>
+                        <div className="flex flex-col gap-2 pt-1">
                              <input 
                                 type="range" 
                                 min={minDate} 
                                 max={maxDate} 
                                 value={localRange[0]} 
-                                onChange={handleMinChange}
+                                onChange={handleSliderMinChange}
                                 className="w-full h-1 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
                              />
-                             <label className="text-xs text-gray-400 mt-1">To Year</label>
                              <input 
                                 type="range" 
                                 min={minDate} 
                                 max={maxDate} 
                                 value={localRange[1]} 
-                                onChange={handleMaxChange}
+                                onChange={handleSliderMaxChange}
                                 className="w-full h-1 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
                              />
                         </div>
@@ -438,11 +500,6 @@
                         currentRange={dateRange} 
                         onChange={handleDateChange} 
                     />
-
-                    {/* Floating Controls or Info could go here */}
-                    <div className="absolute bottom-6 right-6 z-[1000] bg-white/90 p-2 rounded-lg shadow-lg backdrop-blur-sm text-xs text-gray-600">
-                        Viewport-based loading
-                    </div>
                 </div>
             );
         };
