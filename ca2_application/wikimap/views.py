@@ -41,6 +41,17 @@ def article_summary(request, title):
     except Exception as e:
         return Response({"error": str(e)}, status=500)
 
+@api_view(['GET'])
+def search_articles(request):
+    query = request.query_params.get('query', '').strip()
+    if not query:
+        return Response([])
+    
+    # Case-insensitive containment search, limit to 50 suggestions
+    articles = Article.objects.filter(title__icontains=query)[:50]
+    serializer = ArticleSerializer(articles, many=True)
+    return Response(serializer.data)
+
 
 # API Views
 class ArticleViewSet(viewsets.ReadOnlyModelViewSet):

@@ -83,6 +83,98 @@
 
     <script type="text/babel">
         // Timeline Control Component
+        // Search Bar Component
+        const SearchBar = ({ onSelect }) => {
+            const [query, setQuery] = React.useState('');
+            const [results, setResults] = React.useState([]);
+            const [isOpen, setIsOpen] = React.useState(false);
+            const wrapperRef = React.useRef(null);
+            
+            // Debounce logic
+            React.useEffect(() => {
+                const timer = setTimeout(async () => {
+                    if (query.trim().length < 2) {
+                        setResults([]);
+                        console.log("Query too short, clearing results");
+                        return;
+                    }
+
+                    console.log("Fetching search results for:", query);
+                    try {
+                        const response = await fetch(`/api/search/?query=${encodeURIComponent(query)}`);
+                        if (response.ok) {
+                            const data = await response.json();
+                            console.log("Search results received:", data);
+                            
+                            // Handle GeoJSON FeatureCollection
+                            const features = data.features || [];
+                            setResults(features);
+                            
+                            if (features.length > 0) {
+                                setIsOpen(true);
+                                console.log("Opening dropdown");
+                            } else {
+                                setIsOpen(false);
+                            }
+                        } else {
+                            console.error("Search response not ok:", response.status);
+                        }
+                    } catch (error) {
+                        console.error("Search failed:", error);
+                    }
+                }, 400);
+
+                return () => clearTimeout(timer);
+            }, [query]);
+
+            // Click outside to close
+            React.useEffect(() => {
+                const handleClickOutside = (event) => {
+                    if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
+                        setIsOpen(false);
+                    }
+                };
+                document.addEventListener("mousedown", handleClickOutside);
+                return () => document.removeEventListener("mousedown", handleClickOutside);
+            }, []);
+
+            const handleSelect = (article) => {
+                setQuery(article.properties.title);
+                setIsOpen(false);
+                onSelect(article);
+            };
+
+            return (
+                <div ref={wrapperRef} className="absolute top-4 right-14 z-[1000] w-64 bg-white/90 backdrop-blur-md rounded-lg shadow-xl border border-white/50">
+                     <div className="relative">
+                        <input
+                            type="text"
+                            className="w-full px-4 py-2 pl-9 rounded-lg border-0 bg-transparent focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm placeholder-gray-500"
+                            placeholder="Search location..."
+                            value={query}
+                            onChange={(e) => setQuery(e.target.value)}
+                            onFocus={() => query.length >= 2 && setIsOpen(true)}
+                        />
+                        <i className="fa-solid fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-xs"></i>
+                    </div>
+
+                    {isOpen && results.length > 0 && (
+                        <div className="absolute top-full left-0 w-full mt-1 bg-white rounded-lg shadow-lg border border-gray-100 overflow-hidden max-h-60 overflow-y-auto">
+                            {results.map((article) => (
+                                <button
+                                    key={article.id}
+                                    onClick={() => handleSelect(article)}
+                                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors border-b border-gray-50 last:border-0"
+                                >
+                                    {article.properties.title}
+                                </button>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
         const TimelineControl = ({ minDate, maxDate, currentRange, onChange }) => {
             const [localRange, setLocalRange] = React.useState(currentRange);
             const [minInput, setMinInput] = React.useState(currentRange[0].toString());
@@ -404,6 +496,16 @@
                 }).addTo(markersLayerRef.current);
             };
 
+            const handleSearchSelect = (article) => {
+                if (mapInstanceRef.current && article.geometry && article.geometry.coordinates) {
+                    const [lon, lat] = article.geometry.coordinates;
+                    mapInstanceRef.current.flyTo([lat, lon], 16, {
+                        animate: true,
+                        duration: 1.5
+                    });
+                }
+            };
+
             const handleDateChange = (newRange) => {
                 setDateRange(newRange);
                 // Trigger fetch with new range
@@ -494,6 +596,8 @@
                 <div className="w-full h-full relative">
                     <div ref={mapRef} id="map-container" className="rounded-lg shadow-inner" />
                     
+                    <SearchBar onSelect={handleSearchSelect} />
+
                     <TimelineControl 
                         minDate={1000} 
                         maxDate={2024} 
