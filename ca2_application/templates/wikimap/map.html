@@ -566,10 +566,6 @@
                 Object.keys(registryRef.current).forEach(key => {
                     if (!seenKeys.has(key)) {
                         const marker = registryRef.current[key];
-                        // Don't remove if it's currently open? No, if it's gone from backend, remove it.
-                        // But user issue was panning causing refresh. If panned only slightly, 
-                        // the open marker SHOULD still be in 'features' so it will be in 'seenKeys'.
-                        // So removing unseen is correct.
                         markersLayerRef.current.removeLayer(marker);
                         delete registryRef.current[key];
                     }
@@ -625,22 +621,6 @@
                 // Initialize Markers Layer Group (Standard Layer, not MarkerCluster anymore for server-side clusters)
                 const markersLayer = L.layerGroup().addTo(map);
                 markersLayerRef.current = markersLayer;
-
-                // Event Listeners for Moving
-                const onMoveEnd = () => {
-                    // Use CURRENT dateRange from state? No, effect closure issue.
-                    // Need to use refs or dependency array. Dependency array refreshes map which is bad.
-                    // Best way: pass current values to fetch function manually or use refs for state.
-                    // Actually, we can just use the latest value since we are inside a functional component...
-                    // WAIT, the listener is attached once. It will capture stale state.
-                    // Use a ref for dateRange to access inside the event callback.
-                };
-                
-                // We need a stable reference to dateRange for the event listener
-                // Or just re-attach listener? No.
-                // Use a ref to store current dateRange
-                
-                // Moved logic to a separate useEffect for listener attachment or use a Ref.
                 
                 // Initial fetch
                 fetchArticles(map.getBounds(), [1000, 2024]);
