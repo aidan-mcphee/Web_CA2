@@ -58,6 +58,7 @@ INSTALLED_APPS = [
     'corsheaders', 
     
     # Local apps 
+    'wikimap', 
     
     # Third party apps
     'rest_framework_gis',
