@@ -50,6 +50,18 @@ class ArticleViewSet(viewsets.ReadOnlyModelViewSet):
     filter_backends = (InBBoxFilter,)
     pagination_class = None
 
+    def get_queryset(self):
+        queryset = Article.objects.all()
+        min_year = self.request.query_params.get('min_year')
+        max_year = self.request.query_params.get('max_year')
+        
+        if min_year:
+            queryset = queryset.filter(oldest_date__year__gte=min_year)
+        if max_year:
+            queryset = queryset.filter(oldest_date__year__lte=max_year)
+            
+        return queryset
+
     def list(self, request, *args, **kwargs):
         zoom = request.query_params.get('zoom')
         if zoom and float(zoom) < 14:

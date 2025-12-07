@@ -2,6 +2,7 @@
 {% load static %}
 
 {% block title %}WikiMap - Explore{% endblock %}
+{% block main_classes %}flex-grow w-full pt-16{% endblock %}
 
 {% block extra_head %}
     <!-- Leaflet CSS -->
@@ -81,36 +82,110 @@
     <script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
 
     <script type="text/babel">
+        // Timeline Control Component
+        const TimelineControl = ({ minDate, maxDate, currentRange, onChange }) => {
+            const [localRange, setLocalRange] = React.useState(currentRange);
+
+            const handleMinChange = (e) => {
+                const newVal = parseInt(e.target.value);
+                if (newVal < localRange[1]) {
+                    setLocalRange([newVal, localRange[1]]);
+                    onChange([newVal, localRange[1]]);
+                }
+            };
+
+            const handleMaxChange = (e) => {
+                const newVal = parseInt(e.target.value);
+                if (newVal > localRange[0]) {
+                    setLocalRange([localRange[0], newVal]);
+                    onChange([localRange[0], newVal]);
+                }
+            };
+
+            return (
+                <div className="absolute bottom-8 left-4 z-[1000] bg-white/90 backdrop-blur-md p-4 rounded-xl shadow-2xl border border-white/50 w-72">
+                    <h3 className="font-bold text-gray-800 text-sm mb-3 flex items-center gap-2">
+                        <span className="w-1.5 h-4 bg-blue-600 rounded-full"></span>
+                        Timeline Filter
+                    </h3>
+                    
+                    <div className="space-y-4">
+                        <div className="relative h-2 bg-gray-200 rounded-full mt-2">
+                             {/* Range Visualizer needed here if full slider, but native inputs are easier for MVP */}
+                             <div className="absolute h-full bg-blue-500 rounded-full opacity-50" 
+                                  style={{
+                                      left: `${((localRange[0] - minDate) / (maxDate - minDate)) * 100}%`,
+                                      right: `${100 - ((localRange[1] - minDate) / (maxDate - minDate)) * 100}%`
+                                  }} />
+                        </div>
+
+                        <div className="flex justify-between text-xs font-medium text-gray-500 font-mono">
+                            <span>{localRange[0]}</span>
+                            <span>{localRange[1]}</span>
+                        </div>
+
+                        <div className="flex flex-col gap-2">
+                             <label className="text-xs text-gray-400">From Year</label>
+                             <input 
+                                type="range" 
+                                min={minDate} 
+                                max={maxDate} 
+                                value={localRange[0]} 
+                                onChange={handleMinChange}
+                                className="w-full h-1 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                             />
+                             <label className="text-xs text-gray-400 mt-1">To Year</label>
+                             <input 
+                                type="range" 
+                                min={minDate} 
+                                max={maxDate} 
+                                value={localRange[1]} 
+                                onChange={handleMaxChange}
+                                className="w-full h-1 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                             />
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
         const WikiMap = () => {
             const mapRef = React.useRef(null);
             const mapInstanceRef = React.useRef(null);
             const markersLayerRef = React.useRef(null);
+            const [dateRange, setDateRange] = React.useState([1000, 2024]);
             
-            // State to store articles could be useful, but for 100k points we might just want to 
-            // directly manage markers on the leaflet layer to avoid React reconciliation overhead 
-            // if we were to render them as components.
-            // However, fetching data and updating the layer is a side effect.
+            // Debounce the fetch to avoid spamming while dragging
+            // Simple timeout ref approach
+            const fetchTimeoutRef = React.useRef(null);
 
-            const fetchArticles = async (bounds) => {
-                try {
-                    // Format bounds for backend: min_lon,min_lat,max_lon,max_lat
-                    const bbox = [
-                        bounds.getWest(),
-                        bounds.getSouth(),
-                        bounds.getEast(),
-                        bounds.getNorth()
-                    ].join(',');
-                    
-                    const zoom = mapInstanceRef.current ? mapInstanceRef.current.getZoom() : 13;
+            const fetchArticles = async (bounds, range) => {
+                if (fetchTimeoutRef.current) clearTimeout(fetchTimeoutRef.current);
 
-                    const response = await fetch(`/api/articles/?in_bbox=${bbox}&zoom=${zoom}&format=json`);
-                    if (!response.ok) throw new Error('Network response was not ok');
-                    const data = await response.json();
-                    
-                    updateMarkers(data);
-                } catch (error) {
-                    console.error("Failed to fetch articles:", error);
-                }
+                fetchTimeoutRef.current = setTimeout(async () => {
+                    try {
+                        // Format bounds for backend: min_lon,min_lat,max_lon,max_lat
+                        const bbox = [
+                            bounds.getWest(),
+                            bounds.getSouth(),
+                            bounds.getEast(),
+                            bounds.getNorth()
+                        ].join(',');
+                        
+                        const zoom = mapInstanceRef.current ? mapInstanceRef.current.getZoom() : 13;
+
+                        // Add date filters
+                        const [minYear, maxYear] = range;
+
+                        const response = await fetch(`/api/articles/?in_bbox=${bbox}&zoom=${zoom}&min_year=${minYear}&max_year=${maxYear}&format=json`);
+                        if (!response.ok) throw new Error('Network response was not ok');
+                        const data = await response.json();
+                        
+                        updateMarkers(data);
+                    } catch (error) {
+                        console.error("Failed to fetch articles:", error);
+                    }
+                }, 300); // 300ms debounce
             };
 
             const updateMarkers = (geojson) => {
@@ -209,11 +284,15 @@
                                 const popupContent = layer.getPopup().getContent();
                                 // Temporary loading state in popup
                                 layer.setPopupContent(`
-                                    <div class="p-3" style="width: 240px;">
-                                        <div class="animate-pulse space-y-2">
-                                            <div class="h-4 bg-gray-200 rounded w-3/4"></div>
-                                            <div class="h-4 bg-gray-200 rounded"></div>
-                                            <div class="h-4 bg-gray-200 rounded w-5/6"></div>
+                                    <div class="p-0 overflow-hidden rounded-lg font-sans" style="width: 280px;">
+                                        <div class="p-4">
+                                            <h3 class="font-bold text-gray-900 text-lg mb-2 leading-tight">${title}</h3>
+                                            <div class="animate-pulse space-y-2">
+                                                <div class="h-32 bg-gray-200 rounded mb-2 w-full"></div>
+                                                <div class="h-4 bg-gray-200 rounded w-3/4"></div>
+                                                <div class="h-4 bg-gray-200 rounded"></div>
+                                                <div class="h-4 bg-gray-200 rounded w-5/6"></div>
+                                            </div>
                                         </div>
                                     </div>
                                 `);
@@ -236,9 +315,9 @@
                                                     <span class="text-xs text-gray-400">Oldest: ${feature.properties.oldest_date || 'N/A'}</span>
                                                     <a href="https://en.wikipedia.org/wiki/${title}" 
                                                        target="_blank"
-                                                       class="inline-flex items-center justify-center px-3 py-1.5 bg-blue-600 text-white hover:bg-blue-700 rounded-md text-xs font-semibold transition-colors uppercase tracking-wide">
+                                                       class="inline-flex items-center justify-center px-3 py-1.5 bg-white text-blue-600 text-xs font-semibold hover:bg-blue-50 rounded-md border border-blue-600 transition-colors uppercase tracking-wide">
                                                        Read More
-                                                    </a>
+                                                   </a>
                                                 </div>
                                             </div>
                                         </div>
@@ -263,6 +342,14 @@
                 }).addTo(markersLayerRef.current);
             };
 
+            const handleDateChange = (newRange) => {
+                setDateRange(newRange);
+                // Trigger fetch with new range
+                if (mapInstanceRef.current) {
+                    fetchArticles(mapInstanceRef.current.getBounds(), newRange);
+                }
+            };
+
             React.useEffect(() => {
                 if (!mapRef.current) return;
                 
@@ -271,11 +358,25 @@
                 const map = L.map(mapRef.current).setView([53.3498, -6.2606], 13);
                 mapInstanceRef.current = map;
 
-                // Add Tile Layer (OpenStreetMap)
-                L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                // Define Base Layers
+                const streetLayer = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
                     maxZoom: 19,
                     attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-                }).addTo(map);
+                });
+
+                const satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+                    attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
+                });
+
+                // Add default layer
+                streetLayer.addTo(map);
+
+                // Add Layer Control
+                const baseMaps = {
+                    "Street View": streetLayer,
+                    "Satellite": satelliteLayer
+                };
+                L.control.layers(baseMaps, null, { position: 'topright' }).addTo(map);
 
                 // Initialize Markers Layer Group (Standard Layer, not MarkerCluster anymore for server-side clusters)
                 const markersLayer = L.layerGroup().addTo(map);
@@ -283,18 +384,47 @@
 
                 // Event Listeners for Moving
                 const onMoveEnd = () => {
-                    fetchArticles(map.getBounds());
+                    // Use CURRENT dateRange from state? No, effect closure issue.
+                    // Need to use refs or dependency array. Dependency array refreshes map which is bad.
+                    // Best way: pass current values to fetch function manually or use refs for state.
+                    // Actually, we can just use the latest value since we are inside a functional component...
+                    // WAIT, the listener is attached once. It will capture stale state.
+                    // Use a ref for dateRange to access inside the event callback.
                 };
                 
-                map.on('moveend', onMoveEnd);
+                // We need a stable reference to dateRange for the event listener
+                // Or just re-attach listener? No.
+                // Use a ref to store current dateRange
+                
+                // Moved logic to a separate useEffect for listener attachment or use a Ref.
                 
                 // Initial fetch
-                fetchArticles(map.getBounds());
+                fetchArticles(map.getBounds(), [1000, 2024]);
 
                 // Cleanup
                 return () => {
-                    map.off('moveend', onMoveEnd);
                     map.remove();
+                };
+            }, []);
+
+            // Ref to store current date range for event listeners
+            const dateRangeRef = React.useRef(dateRange);
+            React.useEffect(() => {
+                dateRangeRef.current = dateRange;
+            }, [dateRange]);
+
+            // Separate effect for moveend listener to avoid re-initializing map
+            React.useEffect(() => {
+                if (!mapInstanceRef.current) return;
+                
+                const onMoveEnd = () => {
+                    fetchArticles(mapInstanceRef.current.getBounds(), dateRangeRef.current);
+                };
+                
+                mapInstanceRef.current.on('moveend', onMoveEnd);
+                
+                return () => {
+                    mapInstanceRef.current.off('moveend', onMoveEnd);
                 };
             }, []);
 
@@ -302,6 +432,13 @@
                 <div className="w-full h-full relative">
                     <div ref={mapRef} id="map-container" className="rounded-lg shadow-inner" />
                     
+                    <TimelineControl 
+                        minDate={1000} 
+                        maxDate={2024} 
+                        currentRange={dateRange} 
+                        onChange={handleDateChange} 
+                    />
+
                     {/* Floating Controls or Info could go here */}
                     <div className="absolute bottom-6 right-6 z-[1000] bg-white/90 p-2 rounded-lg shadow-lg backdrop-blur-sm text-xs text-gray-600">
                         Viewport-based loading
