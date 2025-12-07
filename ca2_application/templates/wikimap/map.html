@@ -16,7 +16,7 @@
     <style>
         /* Ensure map takes full available height */
         #map-container {
-            height: calc(100vh - 4rem - env(safe-area-inset-top));
+            height: calc(100dvh - 4rem - env(safe-area-inset-top));
             width: 100%;
             z-index: 0;
             background-color: #f8fafc; /* Light elegant background for map container */
@@ -65,6 +65,10 @@
         }
         .cluster-huge {
             background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%); /* Blue-700 to Blue-800 */
+        }
+
+        footer {
+            display: none;
         }
     </style>
 {% endblock %}
@@ -145,7 +149,7 @@
             };
 
             return (
-                <div ref={wrapperRef} className="absolute top-4 right-14 z-40 w-64 bg-white/90 backdrop-blur-md rounded-lg shadow-xl border border-white/50">
+                <div ref={wrapperRef} className="fixed top-[4.5rem] left-2 right-2 md:absolute md:top-4 md:right-14 md:left-auto md:w-64 z-40 bg-white/90 backdrop-blur-md rounded-lg shadow-xl border border-white/50">
                      <div className="relative">
                         <input
                             type="text"
@@ -240,14 +244,14 @@
             };
 
             return (
-                <div className="absolute bottom-8 left-4 z-[1000] bg-white/90 backdrop-blur-md p-4 rounded-xl shadow-2xl border border-white/50 w-72">
-                    <h3 className="font-bold text-gray-800 text-sm mb-3 flex items-center gap-2">
-                        <span className="w-1.5 h-4 bg-blue-600 rounded-full"></span>
+                <div className="absolute bottom-6 left-2 right-2 md:left-4 md:right-auto md:bottom-8 z-[1000] bg-white/90 backdrop-blur-md p-3 md:p-4 rounded-xl shadow-2xl border border-white/50 w-auto md:w-72 flex flex-col gap-2 md:block">
+                    <h3 className="font-bold text-gray-800 text-xs md:text-sm mb-1 md:mb-3 flex items-center gap-2">
+                        <span className="w-1.5 h-3 md:h-4 bg-blue-600 rounded-full"></span>
                         Timeline Filter
                     </h3>
                     
-                    <div className="space-y-4">
-                        <div className="relative h-2 bg-gray-200 rounded-full mt-2">
+                    <div className="space-y-3 md:space-y-4">
+                        <div className="relative h-1.5 md:h-2 bg-gray-200 rounded-full mt-1 md:mt-2">
                              <div className="absolute h-full bg-blue-500 rounded-full opacity-50" 
                                   style={{
                                       left: `${((localRange[0] - minDate) / (maxDate - minDate)) * 100}%`,
@@ -256,31 +260,31 @@
                         </div>
 
                         <div className="flex justify-between items-center gap-2">
-                            <div className="flex flex-col gap-1 w-full">
-                                <label className="text-xs text-gray-500 font-semibold">Start Year</label>
+                            <div className="flex flex-col gap-0.5 md:gap-1 w-full">
+                                <label className="text-[10px] md:text-xs text-gray-500 font-semibold">Start Year</label>
                                 <input 
                                     type="number" 
                                     value={minInput} 
                                     onChange={(e) => setMinInput(e.target.value)}
                                     onBlur={commitMinChange}
                                     onKeyDown={(e) => handleKeyDown(e, commitMinChange)}
-                                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                                    className="w-full px-2 py-1 text-xs md:text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:outline-none"
                                 />
                             </div>
-                            <div className="flex flex-col gap-1 w-full">
-                                <label className="text-xs text-gray-500 font-semibold text-right">End Year</label>
+                            <div className="flex flex-col gap-0.5 md:gap-1 w-full">
+                                <label className="text-[10px] md:text-xs text-gray-500 font-semibold text-right">End Year</label>
                                 <input 
                                     type="number" 
                                     value={maxInput} 
                                     onChange={(e) => setMaxInput(e.target.value)}
                                     onBlur={commitMaxChange}
                                     onKeyDown={(e) => handleKeyDown(e, commitMaxChange)}
-                                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:outline-none text-right"
+                                    className="w-full px-2 py-1 text-xs md:text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:outline-none text-right"
                                 />
                             </div>
                         </div>
 
-                        <div className="flex flex-col gap-2 pt-1">
+                        <div className="flex flex-col gap-1.5 md:gap-2 pt-0 md:pt-1">
                              <input 
                                 type="range" 
                                 min={minDate} 
@@ -399,14 +403,14 @@
                     
                     if (feature.properties && feature.properties.title) {
                          marker.bindPopup(`
-                            <div class="p-3" style="width: 240px;">
-                                <h3 class="font-bold text-gray-900 text-base mb-1 truncate" title="${feature.properties.title}">${feature.properties.title}</h3>
-                                <div class="flex items-center gap-2 text-xs text-gray-500 mb-2">
+                            <div class="p-2 md:p-3" style="width: auto; min-width: 200px; max-width: 240px;">
+                                <h3 class="font-bold text-gray-900 text-sm md:text-base mb-1 truncate" title="${feature.properties.title}">${feature.properties.title}</h3>
+                                <div class="flex items-center gap-2 text-[10px] md:text-xs text-gray-500 mb-2">
                                     <span class="bg-gray-100 px-2 py-0.5 rounded-full">Oldest: ${feature.properties.oldest_date || 'N/A'}</span>
                                 </div>
                                 <a href="https://en.wikipedia.org/wiki/${feature.properties.title}" 
                                    target="_blank"
-                                   class="inline-flex items-center justify-center w-full px-3 py-1.5 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-md text-sm font-medium transition-colors">
+                                   class="inline-flex items-center justify-center w-full px-3 py-1.5 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-md text-xs md:text-sm font-medium transition-colors">
                                    Read Article →
                                 </a>
                             </div>
@@ -438,14 +442,14 @@
                             const title = feature.properties.title;
                             // Temporary loading state
                             marker.setPopupContent(`
-                                <div class="p-0 overflow-hidden rounded-lg font-sans" style="width: 280px;">
-                                    <div class="p-4">
-                                        <h3 class="font-bold text-gray-900 text-lg mb-2 leading-tight">${title}</h3>
+                                <div class="p-0 overflow-hidden rounded-lg font-sans" style="width: auto; min-width: 220px; max-width: 280px;">
+                                    <div class="p-3 md:p-4">
+                                        <h3 class="font-bold text-gray-900 text-base md:text-lg mb-2 leading-tight">${title}</h3>
                                         <div class="animate-pulse space-y-2">
-                                            <div class="h-32 bg-gray-200 rounded mb-2 w-full"></div>
-                                            <div class="h-4 bg-gray-200 rounded w-3/4"></div>
-                                            <div class="h-4 bg-gray-200 rounded"></div>
-                                            <div class="h-4 bg-gray-200 rounded w-5/6"></div>
+                                            <div class="h-24 md:h-32 bg-gray-200 rounded mb-2 w-full"></div>
+                                            <div class="h-3 md:h-4 bg-gray-200 rounded w-3/4"></div>
+                                            <div class="h-3 md:h-4 bg-gray-200 rounded"></div>
+                                            <div class="h-3 md:h-4 bg-gray-200 rounded w-5/6"></div>
                                         </div>
                                     </div>
                                 </div>
@@ -460,16 +464,16 @@
                                 const summary = data.extract ? (data.extract.length > 100 ? data.extract.substring(0, 100) + '...' : data.extract) : 'No summary available.';
                                 
                                 marker.setPopupContent(`
-                                    <div class="p-0 overflow-hidden rounded-lg font-sans" style="width: 280px;">
-                                        ${imageUrl ? `<div class="w-full h-32 bg-gray-100 bg-cover bg-center" style="background-image: url('${imageUrl}');"></div>` : ''}
-                                        <div class="p-4">
-                                            <h3 class="font-bold text-gray-900 text-lg mb-1 leading-tight">${data.title}</h3>
-                                            <p class="text-sm text-gray-600 mb-3 line-clamp-3">${summary}</p>
+                                    <div class="p-0 overflow-hidden rounded-lg font-sans" style="width: auto; min-width: 220px; max-width: 280px;">
+                                        ${imageUrl ? `<div class="w-full h-24 md:h-32 bg-gray-100 bg-cover bg-center" style="background-image: url('${imageUrl}');"></div>` : ''}
+                                        <div class="p-3 md:p-4">
+                                            <h3 class="font-bold text-gray-900 text-base md:text-lg mb-1 leading-tight">${data.title}</h3>
+                                            <p class="text-xs md:text-sm text-gray-600 mb-2 md:mb-3 line-clamp-3">${summary}</p>
                                             <div class="flex items-center justify-between">
-                                                <span class="text-xs text-gray-400">Oldest: ${feature.properties.oldest_date || 'N/A'}</span>
+                                                <span class="text-[10px] md:text-xs text-gray-400">Oldest: ${feature.properties.oldest_date || 'N/A'}</span>
                                                 <a href="https://en.wikipedia.org/wiki/${title}" 
                                                    target="_blank"
-                                                   class="inline-flex items-center justify-center px-3 py-1.5 bg-white text-blue-600 text-xs font-semibold hover:bg-blue-50 rounded-md border border-blue-600 transition-colors uppercase tracking-wide">
+                                                   class="inline-flex items-center justify-center px-2 py-1 md:px-3 md:py-1.5 bg-white text-blue-600 text-[10px] md:text-xs font-semibold hover:bg-blue-50 rounded-md border border-blue-600 transition-colors uppercase tracking-wide">
                                                    Read More
                                                 </a>
                                             </div>
