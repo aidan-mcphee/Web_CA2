@@ -145,7 +145,7 @@
             };
 
             return (
-                <div ref={wrapperRef} className="absolute top-4 right-14 z-[1000] w-64 bg-white/90 backdrop-blur-md rounded-lg shadow-xl border border-white/50">
+                <div ref={wrapperRef} className="absolute top-4 right-14 z-40 w-64 bg-white/90 backdrop-blur-md rounded-lg shadow-xl border border-white/50">
                      <div className="relative">
                         <input
                             type="text"
@@ -342,158 +342,196 @@
                 }, 300); // 300ms debounce
             };
 
-            const updateMarkers = (geojson) => {
-                if (!markersLayerRef.current) return;
-                
-                markersLayerRef.current.clearLayers();
-                
-                const createClusterIcon = (count) => {
-                    let size, className;
+            const registryRef = React.useRef({});
 
-                    if (count < 10) {
-                        size = 32;
-                        className = 'cluster-small';
-                    } else if (count < 100) {
-                        size = 40;
-                        className = 'cluster-medium';
-                    } else if (count < 1000) {
-                        size = 48;
-                        className = 'cluster-large';
-                    } else {
-                        size = 56;
-                        className = 'cluster-huge';
-                    }
+            const createMarker = (feature, latlng) => {
+                let marker;
+                
+                // Cluster
+                if (feature.properties && feature.properties.is_cluster && feature.properties.count > 1) {
+                     const count = feature.properties.count;
+                     let size, className;
 
-                    return L.divIcon({
-                        html: `<div class="cluster-marker ${className}" style="width: ${size}px; height: ${size}px; font-size: ${Math.max(10, size/2.5)}px;">${count}</div>`,
-                        className: 'custom-cluster-icon', // Wrapper class for Leaflet
-                        iconSize: L.point(size, size),
-                        iconAnchor: [size / 2, size / 2] // Center the icon
+                     if (count < 10) {
+                         size = 32;
+                         className = 'cluster-small';
+                     } else if (count < 100) {
+                         size = 40;
+                         className = 'cluster-medium';
+                     } else if (count < 1000) {
+                         size = 48;
+                         className = 'cluster-large';
+                     } else {
+                         size = 56;
+                         className = 'cluster-huge';
+                     }
+
+                     const icon = L.divIcon({
+                         html: `<div class="cluster-marker ${className}" style="width: ${size}px; height: ${size}px; font-size: ${Math.max(10, size/2.5)}px;">${count}</div>`,
+                         className: 'custom-cluster-icon',
+                         iconSize: L.point(size, size),
+                         iconAnchor: [size / 2, size / 2]
+                     });
+                     
+                     marker = L.marker(latlng, { icon });
+                     
+                     // Cluster click -> Zoom in
+                     marker.on('click', () => {
+                         if (mapInstanceRef.current) {
+                             mapInstanceRef.current.setView(latlng, mapInstanceRef.current.getZoom() + 2);
+                         }
+                     });
+                     
+                } else {
+                    // Standard Article Marker
+                    const wikiIcon = L.icon({
+                        iconUrl: '{% static "svg/Wikipedia-logo-v2.svg" %}',
+                        iconSize: [32, 32],
+                        iconAnchor: [16, 16],
+                        popupAnchor: [0, -16],
+                        className: 'marker-transition'
                     });
-                };
 
-                L.geoJSON(geojson, {
-                    pointToLayer: (feature, latlng) => {
-                        // Check if it's a server-side cluster
-                        if (feature.properties && feature.properties.is_cluster && feature.properties.count > 1) {
-                            return L.marker(latlng, {
-                                icon: createClusterIcon(feature.properties.count)
-                            });
-                        }
-                        
-                        // Standard Article Marker - improved look
-                        const wikiIcon = L.icon({
-                            iconUrl: '{% static "svg/Wikipedia-logo-v2.svg" %}',
-                            iconSize: [32, 32], // Default size
-                            iconAnchor: [16, 16], // Center anchor
-                            popupAnchor: [0, -16], // Popup above
-                            className: 'marker-transition'
-                        });
-
-                        return L.marker(latlng, {
-                            icon: wikiIcon,
-                            title: feature.properties.title
-                        });
-                    },
-                    onEachFeature: (feature, layer) => {
-                        if (feature.properties && feature.properties.title) {
-                            layer.bindPopup(`
-                                <div class="p-3" style="width: 240px;">
-                                    <h3 class="font-bold text-gray-900 text-base mb-1 truncate" title="${feature.properties.title}">${feature.properties.title}</h3>
-                                    <div class="flex items-center gap-2 text-xs text-gray-500 mb-2">
-                                        <span class="bg-gray-100 px-2 py-0.5 rounded-full">Oldest: ${feature.properties.oldest_date || 'N/A'}</span>
-                                    </div>
-                                    <a href="https://en.wikipedia.org/wiki/${feature.properties.title}" 
-                                       target="_blank"
-                                       class="inline-flex items-center justify-center w-full px-3 py-1.5 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-md text-sm font-medium transition-colors">
-                                       Read Article →
-                                    </a>
+                    marker = L.marker(latlng, {
+                        icon: wikiIcon,
+                        title: feature.properties.title
+                    });
+                    
+                    if (feature.properties && feature.properties.title) {
+                         marker.bindPopup(`
+                            <div class="p-3" style="width: 240px;">
+                                <h3 class="font-bold text-gray-900 text-base mb-1 truncate" title="${feature.properties.title}">${feature.properties.title}</h3>
+                                <div class="flex items-center gap-2 text-xs text-gray-500 mb-2">
+                                    <span class="bg-gray-100 px-2 py-0.5 rounded-full">Oldest: ${feature.properties.oldest_date || 'N/A'}</span>
                                 </div>
-                            `, {
-                                closeButton: false,
-                                className: 'custom-popup'
-                            });
-                            
-                            // Add hover effect
-                            layer.on('mouseover', function() {
-                                const currentIcon = this.options.icon;
-                                this.setIcon(L.icon({
-                                    ...currentIcon.options,
-                                    iconSize: [40, 40], // Scale up
-                                    iconAnchor: [20, 20] // Adjust anchor
-                                }));
-                            });
-                            layer.on('mouseout', function() {
-                                const currentIcon = this.options.icon;
-                                this.setIcon(L.icon({
-                                    ...currentIcon.options,
-                                    iconSize: [32, 32], // Back to normal
-                                    iconAnchor: [16, 16] // Back to normal anchor
-                                }));
-                            });
+                                <a href="https://en.wikipedia.org/wiki/${feature.properties.title}" 
+                                   target="_blank"
+                                   class="inline-flex items-center justify-center w-full px-3 py-1.5 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-md text-sm font-medium transition-colors">
+                                   Read Article →
+                                </a>
+                            </div>
+                        `, {
+                            closeButton: false,
+                            className: 'custom-popup'
+                        });
+                        
+                        // Hover effects
+                        marker.on('mouseover', function() {
+                            const currentIcon = this.options.icon;
+                            this.setIcon(L.icon({
+                                ...currentIcon.options,
+                                iconSize: [40, 40],
+                                iconAnchor: [20, 20]
+                            }));
+                        });
+                        marker.on('mouseout', function() {
+                            const currentIcon = this.options.icon;
+                            this.setIcon(L.icon({
+                                ...currentIcon.options,
+                                iconSize: [32, 32],
+                                iconAnchor: [16, 16]
+                            }));
+                        });
 
-                            // Add click listener for summary
-                            layer.on('click', async () => {
-                                const title = feature.properties.title;
-                                const popupContent = layer.getPopup().getContent();
-                                // Temporary loading state in popup
-                                layer.setPopupContent(`
+                        // Summary click
+                        marker.on('click', async () => {
+                            const title = feature.properties.title;
+                            // Temporary loading state
+                            marker.setPopupContent(`
+                                <div class="p-0 overflow-hidden rounded-lg font-sans" style="width: 280px;">
+                                    <div class="p-4">
+                                        <h3 class="font-bold text-gray-900 text-lg mb-2 leading-tight">${title}</h3>
+                                        <div class="animate-pulse space-y-2">
+                                            <div class="h-32 bg-gray-200 rounded mb-2 w-full"></div>
+                                            <div class="h-4 bg-gray-200 rounded w-3/4"></div>
+                                            <div class="h-4 bg-gray-200 rounded"></div>
+                                            <div class="h-4 bg-gray-200 rounded w-5/6"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            `);
+                            
+                            try {
+                                const response = await fetch(`/api/summary/${encodeURIComponent(title)}/`);
+                                if (!response.ok) throw new Error('Failed to fetch summary');
+                                const data = await response.json();
+                                
+                                const imageUrl = data.thumbnail ? data.thumbnail.source : null;
+                                const summary = data.extract ? (data.extract.length > 100 ? data.extract.substring(0, 100) + '...' : data.extract) : 'No summary available.';
+                                
+                                marker.setPopupContent(`
                                     <div class="p-0 overflow-hidden rounded-lg font-sans" style="width: 280px;">
+                                        ${imageUrl ? `<div class="w-full h-32 bg-gray-100 bg-cover bg-center" style="background-image: url('${imageUrl}');"></div>` : ''}
                                         <div class="p-4">
-                                            <h3 class="font-bold text-gray-900 text-lg mb-2 leading-tight">${title}</h3>
-                                            <div class="animate-pulse space-y-2">
-                                                <div class="h-32 bg-gray-200 rounded mb-2 w-full"></div>
-                                                <div class="h-4 bg-gray-200 rounded w-3/4"></div>
-                                                <div class="h-4 bg-gray-200 rounded"></div>
-                                                <div class="h-4 bg-gray-200 rounded w-5/6"></div>
+                                            <h3 class="font-bold text-gray-900 text-lg mb-1 leading-tight">${data.title}</h3>
+                                            <p class="text-sm text-gray-600 mb-3 line-clamp-3">${summary}</p>
+                                            <div class="flex items-center justify-between">
+                                                <span class="text-xs text-gray-400">Oldest: ${feature.properties.oldest_date || 'N/A'}</span>
+                                                <a href="https://en.wikipedia.org/wiki/${title}" 
+                                                   target="_blank"
+                                                   class="inline-flex items-center justify-center px-3 py-1.5 bg-white text-blue-600 text-xs font-semibold hover:bg-blue-50 rounded-md border border-blue-600 transition-colors uppercase tracking-wide">
+                                                   Read More
+                                                </a>
                                             </div>
                                         </div>
                                     </div>
                                 `);
-                                
-                                try {
-                                    const response = await fetch(`/api/summary/${encodeURIComponent(title)}/`);
-                                    if (!response.ok) throw new Error('Failed to fetch summary');
-                                    const data = await response.json();
-                                    
-                                    const imageUrl = data.thumbnail ? data.thumbnail.source : null;
-                                    const summary = data.extract ? (data.extract.length > 100 ? data.extract.substring(0, 100) + '...' : data.extract) : 'No summary available.';
-                                    
-                                    layer.setPopupContent(`
-                                        <div class="p-0 overflow-hidden rounded-lg font-sans" style="width: 280px;">
-                                            ${imageUrl ? `<div class="w-full h-32 bg-gray-100 bg-cover bg-center" style="background-image: url('${imageUrl}');"></div>` : ''}
-                                            <div class="p-4">
-                                                <h3 class="font-bold text-gray-900 text-lg mb-1 leading-tight">${data.title}</h3>
-                                                <p class="text-sm text-gray-600 mb-3 line-clamp-3">${summary}</p>
-                                                <div class="flex items-center justify-between">
-                                                    <span class="text-xs text-gray-400">Oldest: ${feature.properties.oldest_date || 'N/A'}</span>
-                                                    <a href="https://en.wikipedia.org/wiki/${title}" 
-                                                       target="_blank"
-                                                       class="inline-flex items-center justify-center px-3 py-1.5 bg-white text-blue-600 text-xs font-semibold hover:bg-blue-50 rounded-md border border-blue-600 transition-colors uppercase tracking-wide">
-                                                       Read More
-                                                   </a>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    `);
-                                } catch (error) {
-                                    console.error("Error fetching summary:", error);
-                                     layer.setPopupContent(`
-                                        <div class="p-3">
-                                            <p class="text-red-500 text-sm">Failed to load summary.</p>
-                                        </div>
-                                    `);
-                                }
-                            });
-                            
-                        } else if (feature.properties && feature.properties.is_cluster) {
-                            // Cluster click -> Zoom in
-                            layer.on('click', () => {
-                                mapInstanceRef.current.setView(layer.getLatLng(), mapInstanceRef.current.getZoom() + 2);
-                            });
-                        }
+                            } catch (error) {
+                                console.error("Error fetching summary:", error);
+                                 marker.setPopupContent(`
+                                    <div class="p-3">
+                                        <p class="text-red-500 text-sm">Failed to load summary.</p>
+                                    </div>
+                                `);
+                            }
+                        });
                     }
-                }).addTo(markersLayerRef.current);
+                }
+                return marker;
+            };
+
+            const updateMarkers = (geojson) => {
+                if (!markersLayerRef.current) return;
+                
+                const features = geojson.features || [];
+                const seenKeys = new Set();
+                
+                features.forEach(feature => {
+                    let key;
+                    const coords = feature.geometry.coordinates; // [lon, lat]
+                    
+                    if (feature.properties && feature.properties.is_cluster) {
+                        key = `cluster_${coords[0]}_${coords[1]}_${feature.properties.count}`;
+                    } else if (feature.id) {
+                        key = `article_${feature.id}`;
+                    } else {
+                        // Fallback
+                        key = `item_${coords[0]}_${coords[1]}`;
+                    }
+                    
+                    seenKeys.add(key);
+                    
+                    if (!registryRef.current[key]) {
+                        // Create new marker
+                        const latlng = [coords[1], coords[0]]; // Leaflet uses [lat, lon]
+                        const marker = createMarker(feature, latlng);
+                        marker.addTo(markersLayerRef.current);
+                        registryRef.current[key] = marker;
+                    }
+                });
+                
+                // Cleanup old markers
+                Object.keys(registryRef.current).forEach(key => {
+                    if (!seenKeys.has(key)) {
+                        const marker = registryRef.current[key];
+                        // Don't remove if it's currently open? No, if it's gone from backend, remove it.
+                        // But user issue was panning causing refresh. If panned only slightly, 
+                        // the open marker SHOULD still be in 'features' so it will be in 'seenKeys'.
+                        // So removing unseen is correct.
+                        markersLayerRef.current.removeLayer(marker);
+                        delete registryRef.current[key];
+                    }
+                });
             };
 
             const handleSearchSelect = (article) => {
