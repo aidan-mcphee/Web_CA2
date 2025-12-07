@@ -190,3 +190,8 @@ REST_FRAMEWORK = {
 # CORS settings for development
 CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
+
+# Authentication Redirects
+LOGIN_REDIRECT_URL = '/'
+LOGOUT_REDIRECT_URL = '/'
+CSRF_TRUSTED_ORIGINS = ['https://dev.amcp.ie']

@@ -71,11 +71,29 @@
                 </div>
 
                 <!-- Desktop Menu -->
-                <div class="hidden md:flex space-x-8 items-center">
-                    <a href="/" class="text-slate-600 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium transition-colors">Home</a>
+                <a href="/" class="text-slate-600 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium transition-colors">Home</a>
                     <a href="/map/" class="text-slate-600 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium transition-colors">Map</a>
-                    <a href="#" class="text-slate-600 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium transition-colors">About</a>
-                    <a href="#" class="bg-blue-600 text-white px-4 py-2 rounded-full text-sm font-medium hover:bg-blue-700 transition-colors shadow-md hover:shadow-lg">Get Started</a>
+                    {% if user.is_authenticated %}
+                        <div class="flex items-center space-x-4">
+                            <span class="text-sm font-medium text-slate-500"><i class="fa-solid fa-user-circle mr-1"></i> {{ user.username }}</span>
+                            <!-- Use a form for logout to avoid CSRF issues with GET requests if configured strictly, or just a link if standard -->
+                            <form method="post" action="{% url 'logout' %}" class="inline">
+                                {% csrf_token %}
+                                <button type="submit" class="bg-slate-100 text-slate-700 px-4 py-2 rounded-full text-sm font-medium hover:bg-slate-200 transition-colors border border-slate-200">
+                                    Logout
+                                </button>
+                            </form>
+                        </div>
+                    {% else %}
+                        <div class="flex items-center space-x-3">
+                            <a href="{% url 'login' %}" class="text-slate-600 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium transition-colors">
+                                Login
+                            </a>
+                            <a href="{% url 'signup' %}" class="bg-blue-600 text-white px-4 py-2 rounded-full text-sm font-medium hover:bg-blue-700 transition-colors shadow-md hover:shadow-lg">
+                                Register <i class="fa-solid fa-user-plus ml-1"></i>
+                            </a>
+                        </div>
+                    {% endif %}
                 </div>
 
                 <!-- Mobile Menu Button -->
@@ -93,8 +111,19 @@
             <div class="px-2 pt-2 pb-3 space-y-1 sm:px-3">
                 <a href="/" class="block px-3 py-2 rounded-md text-base font-medium text-slate-700 hover:text-blue-600 hover:bg-slate-50">Home</a>
                 <a href="/map/" class="block px-3 py-2 rounded-md text-base font-medium text-slate-700 hover:text-blue-600 hover:bg-slate-50">Map</a>
-                <a href="#" class="block w-full text-center mt-4 px-5 py-3 rounded-lg font-medium text-white bg-blue-600 hover:bg-blue-700">Login/Register</a>
-            </div>
+                {% if user.is_authenticated %}
+                    <div class="px-3 py-2 border-t border-slate-100 mt-2">
+                        <p class="text-sm font-medium text-slate-500 mb-2">Signed in as {{ user.username }}</p>
+                        <form method="post" action="{% url 'logout' %}">
+                            {% csrf_token %}
+                            <button type="submit" class="w-full text-left block px-3 py-2 rounded-md text-base font-medium text-red-600 hover:bg-red-50">
+                                Logout
+                            </button>
+                        </form>
+                    </div>
+                {% else %}
+                    <a href="{% url 'login' %}" class="block w-full text-center mt-4 px-5 py-3 rounded-lg font-medium text-white bg-blue-600 hover:bg-blue-700">Login</a>
+                {% endif %}
         </div>
     </nav>
 

@@ -7,6 +7,7 @@ router.register(r'articles', views.ArticleViewSet, basename='article')
 
 urlpatterns = [
     path('', views.index, name='index'),
+    path('accounts/signup/', views.signup, name='signup'),
     path('map/', views.map_view, name='map'),
     path('api/summary/<path:title>/', views.article_summary, name='article_summary'),
     path('api/search/', views.search_articles, name='search_articles'),
