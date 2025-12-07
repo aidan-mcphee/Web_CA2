@@ -80,8 +80,8 @@
                             layer.bindPopup(`
                                 <div class="p-2">
                                     <h3 class="font-bold text-lg">${feature.properties.title}</h3>
-                                    <p class="text-xs text-gray-500">Date: ${feature.properties.oldest_date || 'Unknown'}</p>
-                                    <a href="#" class="text-blue-600 hover:text-blue-800 text-sm mt-1 block">Read Article</a>
+                                    <p class="text-xs text-gray-500">Oldest Reference: ${feature.properties.oldest_date || 'Unknown'}</p>
+                                    <a href="https://en.wikipedia.org/wiki/${feature.properties.title}" class="text-blue-600 hover:text-blue-800 text-sm mt-1 block">Read Article</a>
                                 </div>
                             `);
                         }
