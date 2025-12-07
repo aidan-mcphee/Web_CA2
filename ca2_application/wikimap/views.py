@@ -6,7 +6,11 @@ from .serializers import ArticleSerializer
 from django.contrib.gis.db.models.functions import SnapToGrid, Centroid
 from django.contrib.gis.db.models.aggregates import Collect
 from django.db.models import Count
+from django.db.models import Count
 from rest_framework.response import Response
+from rest_framework.decorators import api_view
+from django.core.cache import cache
+import requests
 
 # Page views
 def index(request):
@@ -14,6 +18,28 @@ def index(request):
 
 def map_view(request):
     return render(request, 'wikimap/map.html')
+
+@api_view(['GET'])
+def article_summary(request, title):
+    cache_key = f'summary_{title}'
+    cached_data = cache.get(cache_key)
+
+    if cached_data:
+        return Response(cached_data)
+
+    try:
+        url = f"https://en.wikipedia.org/api/rest_v1/page/summary/{title}"
+        response = requests.get(url, headers={'User-Agent': 'WikiMap/1.0 (http://localhost/map/; contact@amcp.ie)'})
+        
+        if response.status_code == 200:
+            data = response.json()
+            # Cache for 24 hours
+            cache.set(cache_key, data, 60 * 60 * 24)
+            return Response(data)
+        else:
+            return Response({"error": "Failed to fetch summary"}, status=response.status_code)
+    except Exception as e:
+        return Response({"error": str(e)}, status=500)
 
 
 # API Views
