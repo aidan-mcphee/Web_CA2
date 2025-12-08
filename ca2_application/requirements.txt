@@ -31,3 +31,7 @@ requests>=2.31.0  # For testing external API calls
 pytest>=7.4.0
 pytest-django>=4.5.0
 factory-boy>=3.3.0
+django-allauth
+requests-oauthlib
+PyJWT
+cryptography
