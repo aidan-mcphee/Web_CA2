@@ -32,7 +32,7 @@ services:
     volumes:
       - ./ca2_application:/app
     depends_on:
-      db:
+      ca2_db:
         condition: service_healthy
 
   pgadmin:
@@ -44,7 +44,7 @@ services:
     volumes:
       - ca2_pgadmin_data:/var/lib/pgadmin
     depends_on:
-      - db
+      - ca2_db
 
   nginx:
     image: nginx:latest
@@ -55,7 +55,8 @@ services:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf
       - ./ca2_application/static:/app/static
     depends_on:
-      - web
+      - ca2_web
+      - ca2_pgadmin
 
 volumes:
   ca2_postgres_data:
