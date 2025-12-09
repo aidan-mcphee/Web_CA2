@@ -18,6 +18,9 @@ from django.core.cache import cache
 import requests
 
 from urllib.parse import quote
+from .models import UserDiscovery
+from django.contrib.gis.geos import Point
+
 
 
 ZOOM_THRESHOLD = 16
@@ -42,7 +45,9 @@ def signup(request):
 
 @login_required
 def profile(request):
-    return render(request, 'wikimap/profile.html')
+    discoveries = UserDiscovery.objects.filter(user=request.user).select_related('article').order_by('-discovered_at')
+    return render(request, 'wikimap/profile.html', {'discoveries': discoveries})
+
 
 @login_required
 def delete_account(request):
@@ -88,6 +93,40 @@ def search_articles(request):
     articles = Article.objects.filter(title__icontains=query)[:50]
     serializer = ArticleSerializer(articles, many=True)
     return Response(serializer.data)
+
+@api_view(['POST'])
+@login_required
+def collect_article(request):
+    try:
+        article_id = request.data.get('article_id')
+        lat = request.data.get('lat')
+        lon = request.data.get('lon')
+
+        if not all([article_id, lat, lon]):
+            return Response({'error': 'Missing parameters'}, status=400)
+
+        article = Article.objects.get(id=article_id)
+        user_point = Point(float(lon), float(lat), srid=4326) # Lon, Lat order
+        
+        article_point_3857 = article.coordinates.transform(3857, clone=True)
+        user_point_3857 = user_point.transform(3857, clone=True)
+        distance = article_point_3857.distance(user_point_3857) # meters
+
+        if distance > 2000: # 2km buffer
+            return Response({'error': 'You are too far away! Get closer to collect this.'}, status=403)
+
+        # Check if already collected
+        if UserDiscovery.objects.filter(user=request.user, article=article).exists():
+            return Response({'message': 'Already collected!'}, status=200)
+
+        UserDiscovery.objects.create(user=request.user, article=article)
+        return Response({'success': True, 'message': 'Article collected!'}, status=201)
+
+    except Article.DoesNotExist:
+        return Response({'error': 'Article not found'}, status=404)
+    except Exception as e:
+        return Response({'error': str(e)}, status=500)
+
 
 
 # API Views

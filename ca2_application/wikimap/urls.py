@@ -13,5 +13,6 @@ urlpatterns = [
     path('map/', views.map_view, name='map'),
     path('api/summary/<path:title>/', views.article_summary, name='article_summary'),
     path('api/search/', views.search_articles, name='search_articles'),
+    path('api/collect/', views.collect_article, name='collect_article'),
     path('api/', include(router.urls)),
 ]

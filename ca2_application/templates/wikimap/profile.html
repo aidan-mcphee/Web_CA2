@@ -33,6 +33,31 @@
             </div>
         </div>
 
+        <div class="bg-white shadow rounded-lg overflow-hidden mb-8">
+            <div class="px-6 py-4 border-b border-slate-200">
+                <h2 class="text-xl font-semibold text-slate-800">My Discovered Articles</h2>
+            </div>
+            <div class="px-6 py-6">
+                {% if discoveries %}
+                    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                        {% for discovery in discoveries %}
+                        <div class="relative flex items-center space-x-3 rounded-lg border border-gray-300 bg-white px-6 py-5 shadow-sm focus-within:ring-2 focus-within:ring-blue-500 focus-within:ring-offset-2 hover:border-gray-400">
+                            <div class="min-w-0 flex-1">
+                                <a href="https://en.wikipedia.org/wiki/{{ discovery.article.title }}" target="_blank" class="focus:outline-none">
+                                    <span class="absolute inset-0" aria-hidden="true"></span>
+                                    <p class="text-sm font-medium text-gray-900">{{ discovery.article.title }}</p>
+                                    <p class="truncate text-sm text-gray-500">Discovered on {{ discovery.discovered_at|date:"M j, Y" }}</p>
+                                </a>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="text-slate-500 text-center py-4">You haven't collected any articles yet. Go explore the map!</p>
+                {% endif %}
+            </div>
+        </div>
+
         <div class="bg-red-50 shadow rounded-lg overflow-hidden border border-red-100">
             <div class="px-6 py-4 border-b border-red-100">
                 <h2 class="text-xl font-semibold text-red-700">Danger Zone</h2>
